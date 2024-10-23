@@ -58,6 +58,35 @@ docker run -d -p 8080:8080 \
   cube8021/urlrewrite
 ```
 
+NOTE: Replace `server.feralhosting.com` and `username` with your Feral Hosting server and username.
+
+## Usage with Radarr, Sonarr, and Lidarr
+
+Below are examples of how to use the URL rewrite proxy with Radarr, Sonarr, and Lidarr.
+
+### **Radarr:**
+
+Transmission:
+- Host: `192.168.1.100`  ## Replace with your server IP
+- Port: `8888`
+- Use SSL: `No`
+- Username: ``  ## Leave blank
+- Password: `YourTransmissionPassword`
+The rest of the settings can be left as default.
+
+### **Sonarr:**
+Transmission:
+- Host: `192.168.1.100`  ## Replace with your server IP
+- Port: `8888`
+- Use SSL: `No`
+- Username: ``  ## Leave blank
+- Password: `YourTransmissionPassword`
+The rest of the settings can be left as default.
+
+## Security
+
+- **Do not expose the URL rewrite proxy to the public internet.** It is designed to be used within a private network as it does not include any authentication mechanisms and could be exploited if exposed to the public.
+
 ## Dependencies
 - [logrus](https://github.com/sirupsen/logrus): A structured logging library for Go.
 
