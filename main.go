@@ -66,10 +66,12 @@ func (rec *statusRecorder) WriteHeader(code int) {
 func main() {
 	// Log the application version information.
 	log.Info("Starting URL rewrite proxy for Feral Hosting")
-	log.Infof("Version: %s\nGit Commit: %s\nBuild Time: %s", version.Version, version.GitCommit, version.BuildTime)
+	log.Infof("Version: %s", version.Version)
+	log.Infof("Git Commit: %s", version.GitCommit)
+	log.Infof("Build Time: %s", version.BuildTime)
 
 	// Construct the target URL dynamically based on configuration.
-	rewriteTarget := "https://" + config.CFG.FeralHostingServer + "/~" + config.CFG.FeralHostingUsername
+	rewriteTarget := "https://" + config.CFG.FeralHostingServer + "/" + config.CFG.FeralHostingUsername
 
 	// Parse the base target URL.
 	target, err := url.Parse(rewriteTarget)
