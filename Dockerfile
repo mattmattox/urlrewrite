@@ -1,26 +1,19 @@
-# Builder Stage: Use bci-base to install dependencies and build the binary
-FROM registry.suse.com/bci/bci-base:15.6 AS builder
+# Use golang alpine image as the builder stage
+FROM golang:1.22.4-alpine3.20 AS builder
 
-# Install required packages with zypper
-RUN zypper --non-interactive refresh && \
-    zypper --non-interactive install curl tar git bind-utils && \
-    zypper clean --all && \
-    rm -rf /var/cache/zypp/* /var/log/zypp/* /tmp/* /var/tmp/*
+# Install git and other necessary tools
+RUN apk update && apk add --no-cache git bash
 
-# Set the working directory for the build
+# Set the Current Working Directory inside the container
 WORKDIR /src
 
-# Copy the source code into the working directory
+# Copy everything from the current directory to the PWD(Present Working Directory) inside the container
 COPY . .
 
-# Install Go and fetch dependencies
-RUN curl -L https://go.dev/dl/go1.22.5.linux-amd64.tar.gz | tar -C /usr/local -xzf - \
-    && /usr/local/go/bin/go mod download
+# Fetch dependencies using go mod if your project uses Go modules
+RUN go mod download
 
-# Ensure Go binaries are installed in the correct path
-ENV PATH="/root/go/bin:/usr/local/go/bin:$PATH"
-
-# Build arguments for versioning
+# Version and Git Commit build arguments
 ARG VERSION
 ARG GIT_COMMIT
 ARG BUILD_DATE
@@ -32,8 +25,16 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo \
     -X github.com/mattmattox/urlrewrite/pkg/version.BuildTime=$BUILD_DATE" \
     -o /bin/urlrewrite
 
-# Final Stage: Use bci-micro to minimize the image size
-FROM registry.suse.com/bci/bci-micro:15.6 AS final
+# Use ubuntu as the final image
+FROM ubuntu:latest
+
+# Install Common Dependencies
+RUN apt-get update && \
+    apt install -y \
+    ca-certificates \
+    curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory inside the container
 WORKDIR /root/
