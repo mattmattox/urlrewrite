@@ -35,19 +35,29 @@ func init() {
 	log.Debug("Logger initialized")
 }
 
-// requestLogger logs incoming requests with method, path, and query parameters.
-func requestLogger(next http.Handler) http.Handler {
+// requestLogger logs incoming requests with method, original URL, rewritten target URL, and query parameters.
+func requestLogger(proxy *httputil.ReverseProxy, target *url.URL) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		log.Infof("Received request: %s %s%s from %s",
-			r.Method, r.URL.Path, r.URL.RawQuery, r.RemoteAddr)
+
+		// Capture the original request path and query.
+		originalURL := r.URL.String()
+
+		// Clone the request to get the rewritten target URL.
+		forwardedReq := r.Clone(r.Context())
+		proxy.Director(forwardedReq)
+		targetURL := forwardedReq.URL.String()
+
+		log.Infof("Received request: %s %s from %s",
+			r.Method, originalURL, r.RemoteAddr)
+		log.Infof("Forwarding to target URL: %s", targetURL)
 
 		// Wrap the ResponseWriter to capture the status code.
 		wrapped := statusRecorder{ResponseWriter: w, status: http.StatusOK}
-		next.ServeHTTP(&wrapped, r)
+		proxy.ServeHTTP(&wrapped, r)
 
-		log.Infof("Completed request: %s %s%s with status %d in %v",
-			r.Method, r.URL.Path, r.URL.RawQuery, wrapped.status, time.Since(start))
+		log.Infof("Completed request: %s %s with status %d in %v",
+			r.Method, originalURL, wrapped.status, time.Since(start))
 	})
 }
 
@@ -87,22 +97,20 @@ func main() {
 		req.Host = target.Host
 		req.URL.Scheme = target.Scheme
 		req.URL.Host = target.Host
-
-		// Join the target path with the original request path.
 		req.URL.Path = joinPaths(target.Path, req.URL.Path)
 	}
 
-	// Set up the HTTP server with request logging and timeouts.
+	// Set up the HTTP server with request logging.
 	addr := "0.0.0.0:" + strconv.Itoa(config.CFG.ServerPort)
 	log.Infof("Starting server on %s", addr)
 
 	server := &http.Server{
 		Addr:              addr,
-		Handler:           requestLogger(proxy),
-		ReadHeaderTimeout: 10 * time.Second,  // Mitigate Slowloris attacks.
-		ReadTimeout:       30 * time.Second,  // Limit reading the request body.
-		WriteTimeout:      30 * time.Second,  // Limit time to write a response.
-		IdleTimeout:       120 * time.Second, // Keep-alive timeout.
+		Handler:           requestLogger(proxy, target), // Updated to pass the proxy and target.
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	// Run the server in a goroutine.
